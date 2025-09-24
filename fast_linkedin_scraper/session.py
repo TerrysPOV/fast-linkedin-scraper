@@ -11,15 +11,17 @@ from .models.person import Person
 class LinkedInSession:
     """High-level LinkedIn scraping session that manages authentication and browser state."""
 
-    def __init__(self, auth: LinkedInAuth, headless: bool = True):
+    def __init__(self, auth: LinkedInAuth, headless: bool = True, chrome_channel: str = None):
         """Initialize LinkedIn session parameters.
 
         Args:
             auth: Authentication instance (PasswordAuth, CookieAuth, etc.)
             headless: Whether to run browser in headless mode
+            chrome_channel: Specific Chrome channel to use (e.g., 'chrome', 'chrome-stable')
         """
         self._auth = auth
         self._headless = headless
+        self._chrome_channel = chrome_channel
         self._browser_session = None
         self._context = None
         self._page = None
@@ -27,7 +29,7 @@ class LinkedInSession:
 
     @classmethod
     def from_password(
-        cls, email: str, password: str, interactive: bool = False, headless: bool = True
+        cls, email: str, password: str, interactive: bool = False, headless: bool = True, chrome_channel: str = None
     ) -> "LinkedInSession":
         """Convenience method to create session with password authentication.
 
@@ -36,26 +38,28 @@ class LinkedInSession:
             password: LinkedIn password
             interactive: If True, pause for manual captcha/challenge solving
             headless: Whether to run browser in headless mode
+            chrome_channel: Specific Chrome channel to use
 
         Returns:
             LinkedInSession instance
         """
         auth = PasswordAuth(email, password, interactive=interactive)
-        return cls(auth, headless=headless)
+        return cls(auth, headless=headless, chrome_channel=chrome_channel)
 
     @classmethod
-    def from_cookie(cls, cookie: str, headless: bool = True) -> "LinkedInSession":
+    def from_cookie(cls, cookie: str, headless: bool = True, chrome_channel: str = None) -> "LinkedInSession":
         """Convenience method to create session with cookie authentication.
 
         Args:
             cookie: LinkedIn li_at cookie value
             headless: Whether to run browser in headless mode
+            chrome_channel: Specific Chrome channel to use
 
         Returns:
             LinkedInSession instance
         """
         auth = CookieAuth(cookie)
-        return cls(auth, headless=headless)
+        return cls(auth, headless=headless, chrome_channel=chrome_channel)
 
     def is_authenticated(self) -> bool:
         """Check if session is authenticated.
@@ -149,7 +153,10 @@ class LinkedInSession:
     async def __aenter__(self):
         """Context manager entry - initialize browser and authenticate."""
         try:
-            self._browser_session = BrowserContextManager(headless=self._headless)
+            self._browser_session = BrowserContextManager(
+                headless=self._headless,
+                channel=self._chrome_channel
+            )
             self._context = await self._browser_session.__aenter__()
             self._page = await self._auth.login(context=self._context)
             self._authenticated = True
